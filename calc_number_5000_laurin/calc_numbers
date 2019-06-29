@@ -1,0 +1,7 @@
+python3 py_calc_numbers.py | tee results.txt
+sort -n results.txt > sortedresults.txt
+printf "\n"
+printf "Fertig\n"
+printf "======\n"
+printf "\n" 
+head -20 sortedresults.txt
