@@ -2,10 +2,10 @@ from openpyxl import load_workbook, Workbook
 from enum import Enum
 
 MIN_ROW = 3
-MAX_ROW = 169 
+MAX_ROW = 164 
 MAX_COL = 14
-INPUT_FILE = "hugo.xlsx"
-OUTPUT_FILE = "egon.xlsx"
+INPUT_FILE = "Mitgliederliste.xlsx"
+OUTPUT_FILE = "GV_2026.xlsx"
 
 class Adresse(Enum):
     MAIN = 1
@@ -65,7 +65,7 @@ ws_target = wb_target.active
 header = ["Nr","NameTeil1","NameTeil2","Strasse","PLZ","Ort","Versand","email","status","versandt","Brief zurück","Email gesendet","Rueckmeldung","Kommt","Adresse passt","Anwesend","Bemerkungen"]
 
 ws_target.append(header)  
-
+already_handled = set()
 for row in ws_source.iter_rows( min_row=MIN_ROW,  max_col=MAX_COL, max_row=MAX_ROW ):
     # if one of the two partner-cells has contents
     if row[6].value != None or row[7].value != None :
@@ -73,40 +73,48 @@ for row in ws_source.iter_rows( min_row=MIN_ROW,  max_col=MAX_COL, max_row=MAX_R
         if row_is == Adresse.MAIN:
             print(f"Row {row[0].row} is Main Member with Member-ID {row[0].value}")
             member_to_find = row[7].value
+            member_itself = row[6].value
         else:
             print(f"Row {row[0].row} is Second Member with Member-ID {row[0].value}")
             member_to_find = row[6].value
-        print(f"Searching now for member {member_to_find}")
-        # Unfortunately once more: iterate over all rows to find the second member ...
-        for other_row in ws_source.iter_rows( min_row=MIN_ROW,  max_col=MAX_COL, max_row=MAX_ROW ):
-            if other_row[0].value == member_to_find: 
-                print(f"Member {other_row[0].value} found in Row : {other_row[0].row}")
-                check_one_row( other_row )
-                check_two_rows( row, other_row )
-                # Everything seems to be fine, now we finally just need to check if we have the same surname and 
-                # just have to merge first-names or if we need to copy both names
-                if other_row[1].value.strip() == row[1].value.strip() :
-                    if row_is == Adresse.MAIN :
-                        part1 = row[2].value + " + " + other_row[2].value
-                        part2 = row[1].value
+            member_itself = row[7].value
+        if member_to_find in already_handled :
+            print(f"already handled member {member_to_find}, no need to do it twice")
+        else:
+            print(f"Searching now for member {member_to_find}")
+            # Unfortunately once more: iterate over all rows to find the second member ...
+            for other_row in ws_source.iter_rows( min_row=MIN_ROW,  max_col=MAX_COL, max_row=MAX_ROW ):
+                if other_row[0].value == member_to_find: 
+                    print(f"Member {other_row[0].value} found in Row : {other_row[0].row}")
+                    check_one_row( other_row )
+                    check_two_rows( row, other_row )
+                    # Everything seems to be fine, now we finally just need to check if we have the same surname and 
+                    # just have to merge first-names or if we need to copy both names
+                    if other_row[1].value.strip() == row[1].value.strip() :
+                        if row_is == Adresse.MAIN :
+                            part1 = row[2].value + " + " + other_row[2].value
+                            part2 = row[1].value
+                        else:
+                            part1 = other_row[2].value + " + " + row[2].value
+                            part2 = row[1].value
                     else:
-                        part1 = other_row[2].value + " + " + row[2].value
-                        part2 = row[1].value
-                else:
-                    if row_is == Adresse.MAIN :
-                        part1 = row[2].value + " " + row[1].value + " + "
-                        part2 = other_row[2].value + " " + other_row[1].value
-                    else:
-                        part1 = other_row[2].value + " " + other_row[1].value + " + "
-                        part2 = row[2].value + " " + row[1].value 
-                line = [row[0].value, part1, part2, row[3].value, row[4].value, row[5].value, row[8].value, row[11].value, row[13].value] 
-                ws_target.append(line) 
+                        if row_is == Adresse.MAIN :
+                            part1 = row[2].value + " " + row[1].value + " + "
+                            part2 = other_row[2].value + " " + other_row[1].value
+                        else:
+                            part1 = other_row[2].value + " " + other_row[1].value + " + "
+                            part2 = row[2].value + " " + row[1].value 
+                    line = [row[0].value, part1, part2, row[3].value, row[4].value, row[5].value, row[8].value, row[11].value, row[13].value] 
+                    ws_target.append(line) 
+                    already_handled.add(member_to_find)
+                    already_handled.add(member_itself)
+
     else:
         line = [row[0].value, row[2].value, row[1].value, row[3].value, row[4].value, row[5].value, row[8].value, row[11].value, row[13].value] 
         ws_target.append(line) 
 
 
-wb_target.save("egon.xlsx")
+wb_target.save(OUTPUT_FILE)
 
 
 
